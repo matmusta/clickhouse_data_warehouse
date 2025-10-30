@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<yandex>
+    <profiles>
+        <default>
+            <allow_experimental_object_type>1</allow_experimental_object_type>
+            <allow_experimental_analyzer>1</allow_experimental_analyzer>
+            <allow_experimental_vector_type>1</allow_experimental_vector_type>
+            <allow_suspicious_low_cardinality_types>1</allow_suspicious_low_cardinality_types>
+            <ann_hnsw_search_efficiency>10</ann_hnsw_search_efficiency>
+        </default>
+    </profiles>
+
+    <merge_tree>
+        <allow_nullable_key>1</allow_nullable_key>
+    </merge_tree>
+</yandex>

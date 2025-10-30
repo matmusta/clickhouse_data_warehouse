@@ -1,0 +1,86 @@
+services:
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.73
+    container_name: clickhouse-seaweedfs
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    command:
+      - server
+      - "-ip=seaweedfs"
+      - "-dir=/data"
+      - "-master.port=${SEAWEEDFS_MASTER_PORT:-9333}"
+      - "-volume.port=${SEAWEEDFS_VOLUME_PORT:-8080}"
+      - "-filer"
+      - "-s3"
+      - "-s3.port=${SEAWEEDFS_S3_PORT:-8333}"
+      - "-s3.config=/etc/seaweedfs/config.json"
+    volumes:
+      - seaweedfs-data:/data
+      - ./seaweedfs:/etc/seaweedfs:ro
+    ports:
+      - "${SEAWEEDFS_S3_PORT:-8333}:8333"
+  clickhouse-server:
+    image: clickhouse/clickhouse-server:25.8
+    container_name: clickhouse-server
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DEFAULT_DATABASE:-default}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - clickhouse-logs:/var/log/clickhouse-server
+      - type: bind
+        source: ./config
+        target: /etc/clickhouse-server/config.d
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--host", "localhost", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  jupyter:
+    build:
+      context: ..
+      dockerfile: compose/jupyter/Dockerfile
+    container_name: clickhouse-jupyter
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu
+    env_file:
+      - ../.env
+    environment:
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN:-clickhouse}
+      JUPYTER_ENABLE_LAB: "yes"
+      CLICKHOUSE_HOST: clickhouse-server
+      CLICKHOUSE_NATIVE_PORT: ${CLICKHOUSE_NATIVE_PORT:-9000}
+      CLICKHOUSE_HTTP_PORT: ${CLICKHOUSE_HTTP_PORT:-8123}
+      NVIDIA_VISIBLE_DEVICES: "all"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+    depends_on:
+      clickhouse-server:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_started
+    ports:
+      - "${JUPYTER_PORT:-8888}:8888"
+    volumes:
+      - ..:/home/jovyan/work
+    command: ["start-notebook.sh", "--NotebookApp.token=${JUPYTER_TOKEN:-clickhouse}"]
+
+volumes:
+  clickhouse-data:
+  clickhouse-logs:
+  seaweedfs-data:

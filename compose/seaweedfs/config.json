@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "clickhouse-demo",
+      "credentials": [
+        {
+          "accessKey": "s3admin",
+          "secretKey": "s3secret"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write"]
+    }
+  ]
+}
